@@ -9,6 +9,17 @@ time_costs:
       fixed_latency: "10"
       volume: "M * N"
       throughput: "15"
+  # APPROXIMATION: constant cost. A shape-dependent model ("M * N") needs the
+  # template symbols bound to the matched operand dims during ETG resolution,
+  # which is not wired up for linalg.transpose -- the raw symbol reaches the
+  # solver and fails to resolve ("Symbol 'N' not found in symbol_map"). The WH
+  # tile transpose is a fixed-cost primitive, so a constant is a reasonable
+  # stand-in; revisit if transpose ever sits on a hot path.
+  transpose_f16: &transpose_f16
+    simple:
+      fixed_latency: "10"
+      volume: "2048"
+      throughput: "15"
   vector_reduce_f16: &vector_reduce_f16
     simple:
       fixed_latency: "1"
@@ -116,3 +127,8 @@ functions:
   elementwise_mul_f16:
     scenarios:
       - time_cost: *elementwise_mul_f16
+
+  transpose_f16:
+    symbols: ["M", "N"]
+    scenarios:
+      - time_cost: *transpose_f16

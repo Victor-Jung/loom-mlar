@@ -280,6 +280,28 @@ func.func @elementwise_add_f16(
   return
 }
 
+func.func @transpose_f16(
+  %a: memref<?x?xf16>,
+  %out: memref<?x?xf16>
+) {
+  %M = loom.sym @M : index
+  %N = loom.sym @N : index
+  loom.bind_shape %a, [%M, %N] : memref<?x?xf16>
+  loom.bind_mem %a, @L1 : memref<?x?xf16>
+  // Cost-model binding only: the output is declared [M, N] rather than the
+  // true [N, M]. A permuted binding leaks the raw template symbol N into the
+  // data-movement costs of neighbouring copies (the binder assigns template
+  // symbols positionally), which then fails to resolve in the solver. Element
+  // count -- all this model needs -- is identical either way.
+  loom.bind_shape %out, [%M, %N] : memref<?x?xf16>
+  loom.bind_mem %out, @L1 : memref<?x?xf16>
+  linalg.transpose
+    ins(%a : memref<?x?xf16>)
+    outs(%out : memref<?x?xf16>)
+    permutation = [1, 0]
+  return
+}
+
 func.func @elementwise_mul_f16(
   %a: memref<?x?xf16>,
   %b: memref<?x?xf16>,

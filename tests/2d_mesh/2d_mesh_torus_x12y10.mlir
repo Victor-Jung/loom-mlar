@@ -321,6 +321,28 @@ module @arch_system {
       outs(%out : memref<?x?xf16>)
     return
   }
+
+  // Tensix has a WH tile transpose and loom2ttkernel lowers it
+  // (ComputeOpToTTKernel.cpp), but without a registration here the staged-ETG
+  // stage rejects the op before lowering ever sees it. The paper's
+  // mamba_chunk_scan uses `broadcast(...).T`, so this is required to compile it
+  // as written.
+  func.func @transpose_f16(
+    %a: memref<?x?xf16>,
+    %out: memref<?x?xf16>
+  ) {
+    %M = loom.sym @M : index
+    %N = loom.sym @N : index
+    loom.bind_shape %a, [%M, %N] : memref<?x?xf16>
+    loom.bind_mem %a, @mem_L1 : memref<?x?xf16>
+    loom.bind_shape %out, [%N, %M] : memref<?x?xf16>
+    loom.bind_mem %out, @mem_L1 : memref<?x?xf16>
+    linalg.transpose
+      ins(%a : memref<?x?xf16>)
+      outs(%out : memref<?x?xf16>)
+      permutation = [1, 0]
+    return
+  }
   }
 
   // Vector lane compute semantics — fp16 element-wise and reduction operations.
